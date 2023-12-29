@@ -1,0 +1,32 @@
+@import url('https://fonts.googleapis.com/css2?family=Merriweather&display=swap');
+
+html, body {
+    margin: 0;
+}
+
+body {
+    text-align: center;
+    font-family: 'Merriweather', serif;
+}
+
+.engine-container {
+    margin: 0;
+    height: 100vh;
+    display: grid;
+    grid-template-rows: 1fr 10fr 2fr;
+    grid-template-columns: 1fr;
+}
+
+.engine-item {
+    height: 100%;
+}
+
+#engine-canvas {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    aspect-ratio: 4/3;
+    max-width: 100%;
+    outline: solid black 2px;
+    border-radius: 10px;
+}
