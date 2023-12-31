@@ -1,5 +1,5 @@
 from typing import Union
-from engine import Vector, Particle, Ensemble, Engine
+from engine import Vector, Particle, Kinematics, Ensemble, Engine
 from engine.formula import gravity, electrostatic
 from engine.util.typing import Number, Array
 
@@ -41,18 +41,30 @@ class SubatomicEngine(Engine):
         ) -> Ensemble:
         if mass == 0: raise ValueError
         forces = [self.gravitational_field.has(mass)]
-        if charge != 0 or charge != None:
+        if charge != 0 and charge != None:
             forces.append(self.electrostatic_field.has(charge))
         return self.add_ensemble(
             name,
             tuple(forces)
         )
     
-    def add_proton(self, position: Union[Vector, Array]) -> Particle:
-        return self.add_particle(position, ensemble = self.proton_ensemble)
+    def add_proton(
+            self,
+            position: Union[Vector, Array],
+            velocity: Union[Vector, Array] = ()
+        ) -> Particle:
+        return self.add_particle(position, kinematics = velocity, ensemble = self.proton_ensemble)
     
-    def add_neutron(self, position: Union[Vector, Array]) -> Particle:
-        return self.add_particle(position, ensemble = self.neutron_ensemble)
+    def add_neutron(
+            self,
+            position: Union[Vector, Array],
+            velocity: Union[Vector, Array] = ()
+        ) -> Particle:
+        return self.add_particle(position, kinematics = velocity, ensemble = self.neutron_ensemble)
 
-    def add_electron(self, position: Union[Vector, Array]) -> Particle:
-        return self.add_particle(position, ensemble = self.electron_ensemble)
+    def add_electron(
+            self,
+            position: Union[Vector, Array],
+            velocity: Union[Vector, Array] = ()
+        ) -> Particle:
+        return self.add_particle(position, kinematics = velocity, ensemble = self.electron_ensemble)

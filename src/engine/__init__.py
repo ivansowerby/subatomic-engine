@@ -79,6 +79,9 @@ class Vector(BinaryNumericOverload):
             return self
         else:
             return output
+    
+    def dumps(self) -> list:
+        return [float(scalar) for scalar in self.vector]
 
 Tensor = Union[Vector, Number]
 
@@ -113,6 +116,9 @@ class Kinematics:
         degree -= 1
         motion = Vector.solve((self.degrees[degree], Vector.decimalize(vector)))
         self.degrees[degree] = motion
+    
+    def dumps(self) -> list:
+        return [degree.dumps() if isinstance(degree, Vector) else [] for degree in self.degrees]
 
 class Force(BinaryNumericOverload):
     def __init__(
@@ -155,6 +161,13 @@ class Force(BinaryNumericOverload):
             return self
         else:
             return output
+    
+    def dumps(self) -> dict:
+        return {
+            'id': self.id,
+            'magnitude': float(self.magnitude),
+            'center': float(self.center) if isinstance(self.center, Number) else self.center.dumps() 
+        }
 
 class Field:
     def __init__(
@@ -183,6 +196,15 @@ class Field:
     __PRINTER__ = lambda name: colored(name, 'cyan')
     def __repr__(self) -> str:
         return f'{Field.__PRINTER__(self.name.capitalize())}=={self.id}'
+    
+    def dumps(self) -> dict:
+        # return {
+        #     'id': self.id,
+        #     'name': self.name,
+        #     'formula': self.formula,
+        #     'units': self.units
+        # }
+        return vars(self)
 
 Fields = Union[Array, Field]
 
@@ -228,6 +250,15 @@ class Ensemble:
     def __repr__(self) -> str:
         return f'{Ensemble.__PRINTER__(self.name.capitalize())}=={self.id}'
 
+    def dumps(self) -> dict:
+        if not isinstance(self.forces, Array): self.forces = [self.forces]
+        return {
+            'id': self.id,
+            'name': self.name,
+            'forces': [force.dumps() for force in self.forces if isinstance(force, Force)],
+            'rest_energy': float(self.rest_energy)
+        }
+
 class Particle:
     def __init__(
             self,
@@ -247,6 +278,17 @@ class Particle:
 
     def __repr__(self) -> str:
         return self.id
+    
+    def dumps(self) -> dict:
+        return {
+            'id': self.id,
+            'position': self.position.dumps(),
+            'kinematics': self.kinematics.dumps(),
+            'ensemble': self.ensemble.dumps()
+        }
+
+def index_for_object(d: dict) -> Object:
+    return d[Object]
 
 class Engine(Ludus):
     def __init__(self, precision: int = 50) -> None:
@@ -303,7 +345,7 @@ class Engine(Ludus):
                 ids = [id]
             else:
                 name = id
-                for group in map(lambda d: d[Object], self.attributes.values()):
+                for group in map(index_for_object, self.attributes.values()):
                     if isinstance(group, Ensemble) and name == group.name:
                         id = group.id
                         ids.append(id)
@@ -313,11 +355,13 @@ class Engine(Ludus):
     def add_particle(
             self,
             position: Union[Vector, Array],
-            kinematics: Kinematics = Kinematics(),
+            kinematics: Union[Kinematics, Vector, Array] = Kinematics(),
             ensemble: Optional[Ensemble] = None,
         ) -> Particle:
         id = self.new_object()
         if isinstance(position, Array): position = Vector(*position)
+        if isinstance(kinematics, Array): kinematics = Vector(*kinematics)
+        if isinstance(kinematics, Vector): kinematics = Kinematics(kinematics)
         particle = Particle(id, position, kinematics, ensemble)
         self.add_property(id, particle)
         self.attach_group(uid = id, gid = [force.id for force in ensemble.forces])
@@ -338,20 +382,21 @@ class Engine(Ludus):
         else: raise ValueError
 
     def animate(self, t: Number = 1) -> None:
+        if not isinstance(t, Decimal): t = decimalize(t)
         self.time += t
         #for each field
         for gid, objects in self.groups.items():
             group = self.attributes[gid]
-            field: Field = group[Object]
+            field: Field = index_for_object(group)
             #for each particle, in field
             for i, uid_1 in enumerate(objects):
                 object_1 = self.objects[uid_1]
-                particle_1: Particle = object_1[Object]
+                particle_1: Particle = index_for_object(object_1)
                 # groups_1 = object_1['gid']
                 # if gid not in groups_1: continue
                 for uid_2 in objects[i+1:]:
                     object_2 = self.objects[uid_2]
-                    particle_2: Particle = object_2[Object]
+                    particle_2: Particle = index_for_object(object_2)
                     # groups_2 = object_2['gid']
                     # if gid not in groups_2: continue
                     force_vector = field.calculate_force(
@@ -371,7 +416,7 @@ class Engine(Ludus):
                     kinematics_2 = particle_2.kinematics
                     kinematics_2.add_motion(acceleration_2, degree = 2)
         for object in self.objects.values():
-            particle: Particle = object[Object]
+            particle: Particle = index_for_object(object)
             position = particle.position
             kinematics = particle.kinematics
             degrees = kinematics.degrees
@@ -395,7 +440,7 @@ class Engine(Ludus):
         log = Log()
         log.pair(Engine.__TIME_LABEL__, f'{self.time}s')
         for object in self.objects.values():
-            particle: Particle = object[Object]
+            particle: Particle = index_for_object(object)
             log.pair(
                 Engine.__PARTICLE_PRINTER__(particle.ensemble.name),
                 value = str(particle),
@@ -414,7 +459,7 @@ class Engine(Ludus):
             log.open_list(Engine.__FIELDS_LABEL__)
             for force in forces:
                 object = self.attributes[force.id]
-                field: Field = object[Object]
+                field: Field = index_for_object(object)
                 log.pair(
                     str(force),
                     str(field),
@@ -423,3 +468,16 @@ class Engine(Ludus):
             log.close_list()
             log.close_section()
         return log.log.rstrip('\n')
+
+    def dumps(self) -> dict:
+        dump = defaultdict(list)
+        for object in map(index_for_object, (*self.objects.values(), *self.attributes.values())):
+            for object_class, key in (
+                    (Particle, 'particles'),
+                    (Field, 'fields'),
+                    (Ensemble, 'ensembles')
+                ):
+                if not isinstance(object, object_class): continue
+                dump[key].append(object.dumps())
+                break
+        return dict(dump)

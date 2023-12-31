@@ -29,4 +29,5 @@ body {
     max-width: 100%;
     outline: solid black 2px;
     border-radius: 10px;
+    background-color: white;
 }

@@ -1,0 +1,28 @@
+{
+    "subatomic": {
+        "proton": {
+            "material": {
+                "color": "red"
+            },
+            "geometry": {
+                "radius": 0.87e-15
+            }
+        },
+        "neutron": {
+            "material": {
+                "color": "green"
+            },
+            "geometry": {
+                "radius": 0.88e-15
+            }
+        },
+        "electron": {
+            "material": {
+                "color": "blue"
+            },
+            "geometry": {
+                "radius": 1e-18
+            }
+        }
+    }
+}
